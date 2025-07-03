@@ -2,6 +2,8 @@ import React, { useState, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import ReactFlow, { Background, Controls, MiniMap } from 'reactflow';
 import 'reactflow/dist/style.css';
+import { toPng } from 'html-to-image';
+import jsPDF from 'jspdf';
 
 export default function UMDOrgChartApp() {
   const [elements, setElements] = useState([]);
@@ -77,13 +79,46 @@ export default function UMDOrgChartApp() {
     reader.readAsBinaryString(file);
   }, []);
 
+  const exportToPNG = () => {
+    const chart = document.getElementById('org-chart');
+    if (!chart) return;
+
+    toPng(chart).then((dataUrl) => {
+      const link = document.createElement('a');
+      link.download = 'org_chart.png';
+      link.href = dataUrl;
+      link.click();
+    });
+  };
+
+  const exportToPDF = () => {
+    const chart = document.getElementById('org-chart');
+    if (!chart) return;
+
+    toPng(chart).then((dataUrl) => {
+      const pdf = new jsPDF('landscape', 'pt', 'a4');
+      const imgProps = pdf.getImageProperties(dataUrl);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+      pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save('org_chart.pdf');
+    });
+  };
+
   return (
     <div className="p-4 w-full h-screen">
       <h1 className="text-2xl font-bold mb-4">UMD Org Chart (Tree View)</h1>
-      <input type="file" accept=".xlsx, .xls" onChange={handleFileUpload} className="mb-4" />
+      <div className="flex gap-4 mb-4">
+        <input type="file" accept=".xlsx, .xls" onChange={handleFileUpload} />
+        <button onClick={exportToPNG} className="px-3 py-1 bg-blue-500 text-white rounded">Export PNG</button>
+        <button onClick={exportToPDF} className="px-3 py-1 bg-green-500 text-white rounded">Export PDF</button>
+      </div>
 
-      {/* ? Fixed width & height for React Flow container */}
-      <div style={{ width: '100%', height: '80vh', border: '1px solid #ccc', borderRadius: '8px' }}>
+      <div
+        id="org-chart"
+        style={{ width: '100%', height: '80vh', border: '1px solid #ccc', borderRadius: '8px' }}
+      >
         <ReactFlow
           nodes={elements.filter(el => !el.source)}
           edges={elements.filter(el => el.source)}
